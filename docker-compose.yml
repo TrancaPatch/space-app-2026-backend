@@ -1,0 +1,15 @@
+services:
+  rethinkdb:
+    image: rethinkdb:latest
+    container_name: spaceapps-rethinkdb
+    restart: unless-stopped
+    ports:
+      - "28015:28015" # Driver de conexión (rethinkdb-ts para NestJS)
+      - "8080:8080"   # Panel de Administración Web (http://localhost:8080)
+      - "29015:29015" # Comunicación intra-cluster
+    volumes:
+      - rethinkdb_data:/data
+
+volumes:
+  rethinkdb_data:
+    name: spaceapps_rethinkdb_data
