@@ -7,6 +7,7 @@ import { DatabaseModule } from './database/database.module';
 import { MissionsModule } from './modules/missions/missions.module';
 import { AstronautsModule } from './modules/astronauts/astronauts.module';
 import { BodyPartsModule } from './modules/body-parts/body-parts.module';
+import { TelemetryModule } from './modules/telemetry/telemetry.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -22,6 +23,7 @@ import { AppService } from './app.service';
     MissionsModule,
     AstronautsModule,
     BodyPartsModule,
+    TelemetryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
