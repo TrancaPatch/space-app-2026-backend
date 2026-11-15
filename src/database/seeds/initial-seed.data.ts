@@ -171,6 +171,61 @@ if (ignacioOrgans.parts.Digestivo) {
   ignacioOrgans.parts.Digestivo.painLevel = 3;
 }
 
+// 4. Proyecciones para Astronauta 4: Moises Soto Gutierrez (Especialista de Misión)
+const moisesProjections = createFullAstronautProjections('4');
+const moisesNervous = moisesProjections.find((p) => p.system === 'nervous')!;
+const moisesBody = moisesProjections.find((p) => p.system === 'body')!;
+
+// Afección leve en el sistema nervioso: Parestesia y compresión radicular
+if (moisesNervous.parts.MedulaEspinal) {
+  moisesNervous.parts.MedulaEspinal.healthStatus = 'WARNING';
+  moisesNervous.parts.MedulaEspinal.displayColor = WARNING_COLOR;
+  moisesNervous.parts.MedulaEspinal.primaryCondition = 'Compresión radicular L4-S1 / Parestesia postural';
+  moisesNervous.parts.MedulaEspinal.activeAlert = true;
+  moisesNervous.parts.MedulaEspinal.painLevel = 2;
+}
+if (moisesNervous.parts.TroncoEncefalico) {
+  moisesNervous.parts.TroncoEncefalico.healthStatus = 'WARNING';
+  moisesNervous.parts.TroncoEncefalico.displayColor = WARNING_COLOR;
+  moisesNervous.parts.TroncoEncefalico.primaryCondition = 'Fatiga neurovestibular en microgravedad';
+  moisesNervous.parts.TroncoEncefalico.activeAlert = true;
+  moisesNervous.parts.TroncoEncefalico.painLevel = 1;
+}
+if (moisesBody.parts.ManoDer) {
+  moisesBody.parts.ManoDer.healthStatus = 'WARNING';
+  moisesBody.parts.ManoDer.displayColor = WARNING_COLOR;
+  moisesBody.parts.ManoDer.primaryCondition = 'Hipoestesia y hormigueo en extremidad distal';
+  moisesBody.parts.ManoDer.activeAlert = true;
+  moisesBody.parts.ManoDer.painLevel = 2;
+}
+
+// 5. Proyecciones para Astronauta 5: Brenda Caballero Gutierrez (Oficial Científica / Médico)
+const brendaProjections = createFullAstronautProjections('5');
+const brendaCardio = brendaProjections.find((p) => p.system === 'cardiovascular')!;
+const brendaBody = brendaProjections.find((p) => p.system === 'body')!;
+
+// Afección: Anemia espacial leve (reducción de eritrocitos por adaptación orbital)
+if (brendaCardio.parts.Corazon) {
+  brendaCardio.parts.Corazon.healthStatus = 'WARNING';
+  brendaCardio.parts.Corazon.displayColor = WARNING_COLOR;
+  brendaCardio.parts.Corazon.primaryCondition = 'Anemia espacial leve (gasto cardíaco compensatorio)';
+  brendaCardio.parts.Corazon.activeAlert = true;
+  brendaCardio.parts.Corazon.painLevel = 1;
+}
+if (brendaCardio.parts.Aorta) {
+  brendaCardio.parts.Aorta.healthStatus = 'WARNING';
+  brendaCardio.parts.Aorta.displayColor = WARNING_COLOR;
+  brendaCardio.parts.Aorta.primaryCondition = 'Hemodilución relativa por redistribución cefálica';
+  brendaCardio.parts.Aorta.activeAlert = true;
+}
+if (brendaBody.parts.Cabeza) {
+  brendaBody.parts.Cabeza.healthStatus = 'WARNING';
+  brendaBody.parts.Cabeza.displayColor = WARNING_COLOR;
+  brendaBody.parts.Cabeza.primaryCondition = 'Mareo ortostático y fatiga por anemia';
+  brendaBody.parts.Cabeza.activeAlert = true;
+  brendaBody.parts.Cabeza.painLevel = 2;
+}
+
 export const INITIAL_SEED_DATA: SeedData = {
   missions: [
     {
@@ -183,7 +238,7 @@ export const INITIAL_SEED_DATA: SeedData = {
       status: 'ACTIVE',
       launchDate: '2026-11-01T00:00:00Z',
       estimatedEndDate: '2026-12-01T00:00:00Z',
-      crewIds: ['1', '2', '3'],
+      crewIds: ['1', '2', '3', '4', '5'],
       createdAt: '2026-11-01T00:00:00Z',
     },
   ],
@@ -257,11 +312,59 @@ export const INITIAL_SEED_DATA: SeedData = {
       overallHealthStatus: 'MONITORING',
       updatedAt: '2026-11-15T00:00:00Z',
     },
+    {
+      id: '4',
+      missionId: 'trancapatch-1',
+      fullName: 'Moises Soto Gutierrez',
+      name: 'Moises S.',
+      callsign: 'Especialista',
+      role: 'Especialista de Misión',
+      avatar: '/avatars/moises.png',
+      bloodType: 'B+',
+      height: '176 cm',
+      weight: '75 kg',
+      pulse: '72 bpm',
+      pressure: '118/76',
+      symptoms: ['Parestesia leve en extremidades', 'Fatiga neuro-ocular'],
+      baselineVitals: {
+        heightCm: 176,
+        weightKg: 75,
+        restingHeartRateBpm: 72,
+        baselineBoneDensityTScore: 0.2,
+      },
+      overallHealthStatus: 'MONITORING',
+      updatedAt: '2026-11-15T00:00:00Z',
+    },
+    {
+      id: '5',
+      missionId: 'trancapatch-1',
+      fullName: 'Brenda Caballero Gutierrez',
+      name: 'Brenda C.',
+      callsign: 'Médico',
+      role: 'Oficial Científica',
+      avatar: '/avatars/brenda.png',
+      bloodType: 'O+',
+      height: '165 cm',
+      weight: '61 kg',
+      pulse: '82 bpm',
+      pressure: '110/70',
+      symptoms: ['Anemia espacial leve', 'Hipotensión ortostática'],
+      baselineVitals: {
+        heightCm: 165,
+        weightKg: 61,
+        restingHeartRateBpm: 82,
+        baselineBoneDensityTScore: -0.3,
+      },
+      overallHealthStatus: 'MONITORING',
+      updatedAt: '2026-11-15T00:00:00Z',
+    },
   ],
   systemProjections: [
     ...arielProjections,
     ...manuelProjections,
     ...ignacioProjections,
+    ...moisesProjections,
+    ...brendaProjections,
   ],
   recentUpdates: [
     {
@@ -314,6 +417,26 @@ export const INITIAL_SEED_DATA: SeedData = {
       pulse: '76 BPM',
       pressure: '120/80',
     },
+    {
+      id: '6',
+      date: '11/11/26',
+      crewMember: 'Moises S.',
+      astronautId: '4',
+      notification: 'Parestesia leve en extremidades',
+      status: 'Añadido',
+      pulse: '72 BPM',
+      pressure: '118/76',
+    },
+    {
+      id: '7',
+      date: '11/11/26',
+      crewMember: 'Brenda C.',
+      astronautId: '5',
+      notification: 'Anemia espacial leve detectada',
+      status: 'Añadido',
+      pulse: '82 BPM',
+      pressure: '110/70',
+    },
   ],
   events: [
     {
@@ -365,6 +488,40 @@ export const INITIAL_SEED_DATA: SeedData = {
         title: 'Dolor de estómago / molestia gástrica',
         description: 'Espasmos leves atribuibles a adaptación a alimentos en microgravedad.',
         recordedBy: 'Ignacio Y. (Reporte)',
+      },
+    },
+    {
+      eventId: 'evt-004',
+      type: 'CLINICAL_RECORD_ADDED',
+      missionId: 'trancapatch-1',
+      astronautId: '4',
+      timestamp: '2026-11-11T09:00:00Z',
+      version: 1,
+      payload: {
+        partId: 'MedulaEspinal',
+        system: 'nervous',
+        recordType: 'SYMPTOM',
+        severity: 'MEDIUM',
+        title: 'Parestesia y compresión radicular leve',
+        description: 'Reporte de hormigueo distal intermitente atribuible a elongación de la columna vertebral en microgravedad.',
+        recordedBy: 'Moises Soto Gutierrez (Reporte)',
+      },
+    },
+    {
+      eventId: 'evt-005',
+      type: 'CLINICAL_RECORD_ADDED',
+      missionId: 'trancapatch-1',
+      astronautId: '5',
+      timestamp: '2026-11-11T11:30:00Z',
+      version: 1,
+      payload: {
+        partId: 'Corazon',
+        system: 'cardiovascular',
+        recordType: 'DIAGNOSIS',
+        severity: 'MEDIUM',
+        title: 'Anemia espacial normocítica leve',
+        description: 'Prueba hematológica en órbita registra hematocrito 34% y hemoglobina 11.2 g/dL. Neocitólisis fisiológica de adaptación orbital.',
+        recordedBy: 'Brenda Caballero Gutierrez (Autoevaluación Médica)',
       },
     },
   ],
