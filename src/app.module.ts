@@ -4,6 +4,9 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import configuration from './config/configuration';
 import { DatabaseModule } from './database/database.module';
+import { MissionsModule } from './modules/missions/missions.module';
+import { AstronautsModule } from './modules/astronauts/astronauts.module';
+import { BodyPartsModule } from './modules/body-parts/body-parts.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -16,6 +19,9 @@ import { AppService } from './app.service';
     EventEmitterModule.forRoot(),
     CqrsModule.forRoot(),
     DatabaseModule,
+    MissionsModule,
+    AstronautsModule,
+    BodyPartsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
