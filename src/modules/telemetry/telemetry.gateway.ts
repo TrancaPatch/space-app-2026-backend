@@ -13,10 +13,12 @@ import {
 import { randomUUID } from 'crypto';
 import { Server, Socket } from 'socket.io';
 import {
+  AnatomicalPartState,
   BodyPartState,
   BodyPartStatusChangedEvent,
   GeminiDiagnosisGeneratedEvent,
 } from '../../common/interfaces/domain.types';
+import { AnatomicalSystem } from '../../common/constants/anatomical-systems.constants';
 
 @WebSocketGateway({
   namespace: '/telemetry',
@@ -126,17 +128,22 @@ export class TelemetryGateway
   // ============================================================================
 
   /**
-   * Escucha actualizaciones de proyección y empuja el nuevo color al visor 3D
+   * Escucha actualizaciones de proyección de cualquiera de los 5 sistemas y empuja el nuevo color al visor 3D
    */
-  @OnEvent('body_part.updated')
-  handleBodyPartUpdated(payload: { astronautId: string; partState: BodyPartState }) {
+  @OnEvent('system_part.updated')
+  handleSystemPartUpdated(payload: {
+    astronautId: string;
+    system: AnatomicalSystem;
+    partState: AnatomicalPartState;
+  }) {
     if (!this.server) return;
 
     const room = `room_${payload.astronautId}`;
-    const { partState } = payload;
+    const { system, partState } = payload;
 
     const eventPayload = {
       astronautId: payload.astronautId,
+      system,
       partId: partState.partId,
       status: partState.healthStatus,
       displayColor: partState.displayColor,
@@ -152,16 +159,17 @@ export class TelemetryGateway
     this.server.to(room).emit('part_updated', eventPayload);
 
     this.logger.debug(
-      `[WebSocket Push:part_updated] -> ${room}: ${partState.partId} (${partState.healthStatus} ${partState.displayColor})`,
+      `[WebSocket Push:part_updated] -> ${room} [${system}]: ${partState.partId} (${partState.healthStatus} ${partState.displayColor})`,
     );
 
     // Si es estado crítico o advertencia, disparar evento de alerta
     if (partState.healthStatus === 'CRITICAL' || partState.healthStatus === 'WARNING') {
       this.server.to(room).emit('alert_triggered', {
         alertId: randomUUID(),
+        system,
         severity: partState.healthStatus,
         affectedParts: [partState.partId],
-        title: `Alerta médica en ${partState.partId}: ${partState.primaryCondition}`,
+        title: `Alerta médica en ${partState.partId} (${system}): ${partState.primaryCondition}`,
         description: `Estado alterado a ${partState.healthStatus} con color ${partState.displayColor}`,
         timestamp: new Date().toISOString(),
       });

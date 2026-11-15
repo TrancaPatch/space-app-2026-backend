@@ -22,7 +22,7 @@ export class AstronautsController {
     summary: 'Obtener perfil biomédico del astronauta',
     description: 'Devuelve datos basales, grupo sanguíneo, misión asignada y rol.',
   })
-  @ApiParam({ name: 'id', description: 'ID del astronauta (ej. astro_ripley)', example: 'astro_ripley' })
+  @ApiParam({ name: 'id', description: 'ID del astronauta (ej. 1 para Ariel Y.)', example: '1' })
   @ApiResponse({ status: 200, description: 'Perfil del astronauta encontrado.' })
   @ApiResponse({ status: 404, description: 'Astronauta no encontrado.' })
   async findOne(@Param('id') id: string) {
@@ -34,7 +34,7 @@ export class AstronautsController {
     summary: 'Consultar signos vitales consolidados actuales',
     description: 'Calcula frecuencia cardíaca, SpO2, temperatura central y alertas activas en tiempo real.',
   })
-  @ApiParam({ name: 'id', description: 'ID del astronauta', example: 'astro_ripley' })
+  @ApiParam({ name: 'id', description: 'ID del astronauta (ej. 1)', example: '1' })
   @ApiResponse({ status: 200, description: 'Signos vitales consolidados obtenidos exitosamente.' })
   @ApiResponse({ status: 404, description: 'Astronauta no encontrado.' })
   async getVitals(@Param('id') id: string) {

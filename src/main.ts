@@ -32,17 +32,19 @@ async function bootstrap() {
 
   // 4. Configuración de Documentación OpenAPI / Swagger
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('SpaceAppsPOC - API Médica y Telemetría Espacial 3D')
+    .setTitle('TrancaPatch - API Médica y Telemetría Espacial 3D')
     .setDescription(
-      'Servidor de telemetría biomédica, historial clínico de las 49 partes anatómicas, simulación orbital y asistente IA para astronautas.',
+      'Servidor de telemetría biomédica, proyecciones multidimensionales para los 5 sistemas anatómicos (cuerpo holográfico, esqueleto, cardiovascular, nervioso y órganos internos), base de datos de eventos en RethinkDB y streaming WebSocket en tiempo real.',
     )
     .setVersion('1.0.0')
     .addTag('health', 'Verificación de estado del servidor')
-    .addTag('missions', 'Misiones espaciales y tripulación')
-    .addTag('astronauts', 'Perfiles y biometría de tripulantes')
-    .addTag('body-parts', 'Monitoreo e historial de las 49 partes anatómicas')
-    .addTag('simulator', 'Simulación de anomalías biomédicas')
-    .addTag('gemini', 'Asistente IA de medicina espacial')
+    .addTag('missions', 'Misión Trancapatch y tripulantes')
+    .addTag('astronauts', 'Perfiles biomédicos de tripulantes (Ariel Y., Manuel J., Ignacio Y.)')
+    .addTag(
+      'anatomical-systems',
+      'Proyecciones y sincronización 3D de los 5 sistemas anatómicos (body, skeleton, cardiovascular, nervous, organs)',
+    )
+    .addTag('body-parts', 'Retrocompatibilidad: 49 partes del cuerpo holográfico')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

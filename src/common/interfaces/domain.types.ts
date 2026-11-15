@@ -1,11 +1,14 @@
 import { BodyPartId } from '../constants/body-parts.constants';
+import { AnatomicalSystem } from '../constants/anatomical-systems.constants';
 
 export type HealthStatus = 'NOMINAL' | 'WARNING' | 'CRITICAL';
 
 export interface Mission {
-  id: string;               // ej. "artemis-iii"
-  code: string;             // ej. "ARTEMIS-III"
-  name: string;             // ej. "Misión Lunar Tripulada Artemis III"
+  id: string;               // ej. "trancapatch-1"
+  code: string;             // ej. "TRANCAPATCH-1"
+  name: string;             // ej. "Misión Espacial Trancapatch"
+  title?: string;           // Para frontend: "Misión Espacial Trancapatch"
+  appName?: string;         // Para frontend: "App"
   environment: 'LEO' | 'LUNAR_SURFACE' | 'DEEP_SPACE' | 'MARS_TRANSIT';
   status: 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'ABORTED';
   launchDate: string;       // ISO 8601
@@ -15,14 +18,21 @@ export interface Mission {
 }
 
 export interface Astronaut {
-  id: string;               // ej. "astro_ripley"
+  id: string;               // "1", "2", "3"
   missionId: string;
-  fullName: string;         // ej. "Dra. Ellen Ripley"
-  callsign: string;         // ej. "Nostromo-1"
-  role: 'COMMANDER' | 'PILOT' | 'MISSION_SPECIALIST' | 'FLIGHT_SURGEON' | 'PAYLOAD_SPECIALIST';
-  gender: 'FEMALE' | 'MALE' | 'OTHER';
-  age: number;
-  bloodType: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
+  fullName: string;         // "Ariel Y."
+  name?: string;            // Para frontend ("Ariel Y.")
+  callsign: string;         // "Capitán"
+  role: string;             // "Capitán" | "Tripulante" | 'COMMANDER' | ...
+  avatar: string;           // "/avatars/ariel.jpg"
+  gender?: 'FEMALE' | 'MALE' | 'OTHER';
+  age?: number;
+  bloodType: string;        // "A+", "O+", "O-"
+  height?: string;          // "168 cm"
+  weight?: string;          // "74 kg"
+  pulse?: string;           // "76 bpm"
+  pressure?: string;        // "120/80"
+  symptoms?: string[];      // ["Radiación UV moderada", "Tos"]
   baselineVitals: {
     heightCm: number;
     weightKg: number;
@@ -33,31 +43,56 @@ export interface Astronaut {
   updatedAt: string;
 }
 
-export interface BodyPartState {
-  partId: BodyPartId;       // Uno de los 49 identificadores
-  region: string;
+export interface AnatomicalPartState {
+  partId: string;           // Identificador de la parte / hueso / vaso / órgano
+  label: string;            // Nombre legible (ej. "Fémur Derecho", "Corazón")
+  system: AnatomicalSystem; // 'body' | 'skeleton' | 'cardiovascular' | 'nervous' | 'organs'
+  region: string;           // Región anatómica
   healthStatus: HealthStatus;
-  displayColor: string;     // Color HEX: #22C55E (Nominal), #F59E0B (Warning), #EF4444 (Critical)
-  primaryCondition: string; // Diagnóstico resumido (ej. "Edema papilar leve - SANS")
+  displayColor: string;     // Color HEX: #22C55E (Nominal), #38BDF8 (Selected), #F59E0B (Warning), #EF4444 (Critical)
+  primaryCondition: string; // Diagnóstico resumido
   painLevel: number;        // Escala 0 a 10
   lastVitals: Record<string, number | string>;
   activeAlert: boolean;
   lastEvaluatedAt: string;
 }
 
+export interface SystemProjection {
+  id: string;               // ej. "1_skeleton"
+  astronautId: string;      // ej. "1"
+  system: AnatomicalSystem;
+  updatedAt: string;
+  parts: Record<string, AnatomicalPartState>;
+}
+
+// Retrocompatibilidad con BodyPartState
+export type BodyPartState = AnatomicalPartState;
+
 export interface MedicalRecord {
   id: string;
   astronautId: string;
-  partId: BodyPartId;
+  partId: string;
+  system?: AnatomicalSystem;
   timestamp: string;
   eventType: 'SYMPTOM' | 'CHECKUP' | 'INCIDENT' | 'TELEMETRY_ALERT' | 'AI_DIAGNOSIS' | 'TREATMENT';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   title: string;
   description: string;
   treatmentNotes?: string;
-  recordedBy: string;       // ej. "Dr. Marcus Vance (Houston)" o "BioSuit Monitor"
+  recordedBy: string;
   previousStatus: HealthStatus;
   newStatus: HealthStatus;
+}
+
+export interface RecentUpdate {
+  id: string;
+  date: string;
+  crewMember: string;
+  astronautId: string;
+  notification: string;
+  status: 'Añadido' | 'Removido';
+  pulse: string;
+  pressure: string;
 }
 
 /**
@@ -74,7 +109,7 @@ export interface BaseDomainEvent<T = Record<string, any>> {
 }
 
 export interface TelemetryVitalsPayload {
-  partId: BodyPartId;
+  partId: string;
   sensorId: string;
   vitals: Record<string, number | string>;
 }
@@ -82,7 +117,8 @@ export interface TelemetryVitalsPayload {
 export type TelemetryVitalsRecordedEvent = BaseDomainEvent<TelemetryVitalsPayload>;
 
 export interface BodyPartStatusChangedPayload {
-  partId: BodyPartId;
+  partId: string;
+  system?: AnatomicalSystem;
   previousStatus: HealthStatus;
   newStatus: HealthStatus;
   displayColor: string;
@@ -93,7 +129,8 @@ export interface BodyPartStatusChangedPayload {
 export type BodyPartStatusChangedEvent = BaseDomainEvent<BodyPartStatusChangedPayload>;
 
 export interface ClinicalRecordAddedPayload {
-  partId: BodyPartId;
+  partId: string;
+  system?: AnatomicalSystem;
   recordType: 'SYMPTOM' | 'CHECKUP' | 'INCIDENT' | 'TELEMETRY_ALERT' | 'AI_DIAGNOSIS' | 'TREATMENT';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   title: string;
@@ -105,7 +142,7 @@ export interface ClinicalRecordAddedPayload {
 export type ClinicalRecordAddedEvent = BaseDomainEvent<ClinicalRecordAddedPayload>;
 
 export interface GeminiDiagnosisPayload {
-  affectedParts: BodyPartId[];
+  affectedParts: string[];
   diagnosis: string;
   gravityRiskFactor: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   countermeasures: string[];

@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EVENT_STORE, IEventStore } from '../../database/interfaces/event-store.interface';
-import { Astronaut, Mission } from '../../common/interfaces/domain.types';
+import { Astronaut, Mission, RecentUpdate } from '../../common/interfaces/domain.types';
 
 @Injectable()
 export class MissionsService {
@@ -24,5 +24,9 @@ export class MissionsService {
   async findCrew(missionId: string): Promise<Astronaut[]> {
     await this.findOne(missionId); // Asegura que la misión existe
     return this.eventStore.getAstronautsByMission(missionId);
+  }
+
+  async getRecentUpdates(): Promise<RecentUpdate[]> {
+    return this.eventStore.getRecentUpdates();
   }
 }

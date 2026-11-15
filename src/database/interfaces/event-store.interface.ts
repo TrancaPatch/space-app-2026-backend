@@ -1,9 +1,13 @@
 import { BodyPartId } from '../../common/constants/body-parts.constants';
+import { AnatomicalSystem } from '../../common/constants/anatomical-systems.constants';
 import {
+  AnatomicalPartState,
   Astronaut,
   BaseDomainEvent,
   BodyPartState,
   Mission,
+  RecentUpdate,
+  SystemProjection,
 } from '../../common/interfaces/domain.types';
 import { SeedData } from '../seeds/initial-seed.data';
 
@@ -23,15 +27,25 @@ export interface IEventStore {
   /**
    * Obtiene la bitácora histórica de eventos para una parte anatómica específica
    */
-  getEventsByPart(astronautId: string, partId: BodyPartId): Promise<BaseDomainEvent[]>;
+  getEventsByPart(astronautId: string, partId: string): Promise<BaseDomainEvent[]>;
 
   /**
-   * Obtiene la proyección actual del estado de las 49 partes del cuerpo del astronauta
+   * Obtiene la proyección de cualquiera de los 5 sistemas anatómicos (body, skeleton, cardiovascular, nervous, organs)
    */
-  getBodyProjection(astronautId: string): Promise<Record<BodyPartId, BodyPartState>>;
+  getSystemProjection(astronautId: string, system: AnatomicalSystem): Promise<SystemProjection>;
 
   /**
-   * Actualiza la proyección en tiempo real de una parte del cuerpo
+   * Actualiza el estado y color de una parte de un sistema anatómico específico
+   */
+  updateSystemPart(astronautId: string, system: AnatomicalSystem, partState: AnatomicalPartState): Promise<void>;
+
+  /**
+   * Retrocompatibilidad: Obtiene la proyección de las 49 partes del cuerpo
+   */
+  getBodyProjection(astronautId: string): Promise<Record<string, BodyPartState>>;
+
+  /**
+   * Retrocompatibilidad: Actualiza una parte del cuerpo holográfico
    */
   updateBodyPartProjection(astronautId: string, state: BodyPartState): Promise<void>;
 
@@ -59,6 +73,11 @@ export interface IEventStore {
    * Obtiene la tripulación asignada a una misión específica
    */
   getAstronautsByMission(missionId: string): Promise<Astronaut[]>;
+
+  /**
+   * Obtiene las actualizaciones recientes de la misión para el dashboard
+   */
+  getRecentUpdates(): Promise<RecentUpdate[]>;
 
   /**
    * Carga datos semilla en el almacenamiento

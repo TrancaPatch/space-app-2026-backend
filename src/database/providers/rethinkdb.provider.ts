@@ -7,20 +7,20 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { r, Connection } from 'rethinkdb-ts';
+import { AnatomicalSystem } from '../../common/constants/anatomical-systems.constants';
+import { BodyPartId } from '../../common/constants/body-parts.constants';
 import {
-  ALL_BODY_PART_IDS,
-  BodyPartId,
-  BODY_PARTS_METADATA,
-  NOMINAL_COLOR,
-} from '../../common/constants/body-parts.constants';
-import {
+  AnatomicalPartState,
   Astronaut,
   BaseDomainEvent,
   BodyPartState,
   Mission,
+  RecentUpdate,
+  SystemProjection,
 } from '../../common/interfaces/domain.types';
 import { IEventStore } from '../interfaces/event-store.interface';
 import {
+  createNominalSystemParts,
   INITIAL_SEED_DATA,
   SeedData,
 } from '../seeds/initial-seed.data';
@@ -107,7 +107,13 @@ export class RethinkDBEventStoreProvider
     }
 
     // 2. Asegurar tablas requeridas
-    const requiredTables = ['events', 'body_projections', 'missions', 'astronauts'];
+    const requiredTables = [
+      'events',
+      'system_projections',
+      'missions',
+      'astronauts',
+      'recent_updates',
+    ];
     try {
       const tables: string[] =
         (await r.db(this.dbName).tableList().run(this.connection)) || [];
@@ -147,7 +153,7 @@ export class RethinkDBEventStoreProvider
     return (result as unknown as BaseDomainEvent[]) || [];
   }
 
-  async getEventsByPart(astronautId: string, partId: BodyPartId): Promise<BaseDomainEvent[]> {
+  async getEventsByPart(astronautId: string, partId: string): Promise<BaseDomainEvent[]> {
     this.ensureConnection();
     const result = await r
       .table('events')
@@ -159,43 +165,91 @@ export class RethinkDBEventStoreProvider
     return (result as unknown as BaseDomainEvent[]) || [];
   }
 
-  async getBodyProjection(astronautId: string): Promise<Record<BodyPartId, BodyPartState>> {
+  /**
+   * Obtiene la proyección de cualquiera de los 5 sistemas anatómicos
+   */
+  async getSystemProjection(
+    astronautId: string,
+    system: AnatomicalSystem,
+  ): Promise<SystemProjection> {
     this.ensureConnection();
+    const id = `${astronautId}_${system}`;
     const record: any = await r
-      .table('body_projections')
-      .get(astronautId)
+      .table('system_projections')
+      .get(id)
       .run(this.connection!);
 
-    if (record && record.projection) {
-      return record.projection as Record<BodyPartId, BodyPartState>;
+    if (record) {
+      return record as SystemProjection;
     }
 
-    const defaultProjection = this.createDefaultBodyProjection();
+    const now = new Date().toISOString();
+    const defaultProjection: SystemProjection = {
+      id,
+      astronautId,
+      system,
+      updatedAt: now,
+      parts: createNominalSystemParts(system, now),
+    };
+
     await r
-      .table('body_projections')
-      .insert({ id: astronautId, projection: defaultProjection }, { conflict: 'replace' })
+      .table('system_projections')
+      .insert(defaultProjection, { conflict: 'replace' })
       .run(this.connection!);
 
     return defaultProjection;
   }
 
-  async updateBodyPartProjection(astronautId: string, state: BodyPartState): Promise<void> {
+  /**
+   * Actualiza el estado de una parte dentro de un sistema anatómico específico
+   */
+  async updateSystemPart(
+    astronautId: string,
+    system: AnatomicalSystem,
+    partState: AnatomicalPartState,
+  ): Promise<void> {
     this.ensureConnection();
-    const current = await this.getBodyProjection(astronautId);
-    current[state.partId] = {
-      ...state,
+    const projection = await this.getSystemProjection(astronautId, system);
+    const updatedState: AnatomicalPartState = {
+      ...partState,
       lastEvaluatedAt: new Date().toISOString(),
     };
 
+    projection.parts[partState.partId] = updatedState;
+    projection.updatedAt = updatedState.lastEvaluatedAt;
+
     await r
-      .table('body_projections')
-      .insert({ id: astronautId, projection: current }, { conflict: 'replace' })
+      .table('system_projections')
+      .insert(projection, { conflict: 'replace' })
       .run(this.connection!);
 
-    this.eventEmitter.emit('body_part.updated', {
+    this.eventEmitter.emit('system_part.updated', {
       astronautId,
-      partState: current[state.partId],
+      system,
+      partState: updatedState,
     });
+
+    if (system === 'body') {
+      this.eventEmitter.emit('body_part.updated', {
+        astronautId,
+        partState: updatedState as unknown as BodyPartState,
+      });
+    }
+  }
+
+  /**
+   * Retrocompatibilidad: Obtiene la proyección del cuerpo holográfico (49 partes)
+   */
+  async getBodyProjection(astronautId: string): Promise<Record<string, BodyPartState>> {
+    const projection = await this.getSystemProjection(astronautId, 'body');
+    return projection.parts as unknown as Record<string, BodyPartState>;
+  }
+
+  /**
+   * Retrocompatibilidad: Actualiza una parte del cuerpo
+   */
+  async updateBodyPartProjection(astronautId: string, state: BodyPartState): Promise<void> {
+    await this.updateSystemPart(astronautId, 'body', state as unknown as AnatomicalPartState);
   }
 
   async getMissions(): Promise<Mission[]> {
@@ -213,7 +267,7 @@ export class RethinkDBEventStoreProvider
   async getAstronauts(): Promise<Astronaut[]> {
     this.ensureConnection();
     const result = await r.table('astronauts').run(this.connection!);
-    return (result as unknown as Mission[]) as unknown as Astronaut[];
+    return (result as unknown as Astronaut[]) || [];
   }
 
   async getAstronautById(id: string): Promise<Astronaut | null> {
@@ -231,11 +285,27 @@ export class RethinkDBEventStoreProvider
     return (result as unknown as Astronaut[]) || [];
   }
 
+  async getRecentUpdates(): Promise<RecentUpdate[]> {
+    this.ensureConnection();
+    const result = await r.table('recent_updates').run(this.connection!);
+    return (result as unknown as RecentUpdate[]) || [];
+  }
+
   async clean(): Promise<void> {
     this.ensureConnection();
-    const tables = ['events', 'body_projections', 'missions', 'astronauts'];
+    const tables = [
+      'events',
+      'system_projections',
+      'missions',
+      'astronauts',
+      'recent_updates',
+    ];
     for (const table of tables) {
-      await r.table(table).delete().run(this.connection!);
+      try {
+        await r.table(table).delete().run(this.connection!);
+      } catch (e: any) {
+        this.logger.warn(`No se pudo vaciar la tabla ${table}: ${e.message}`);
+      }
     }
     this.logger.log('🧹 [EventStore:RethinkDB] Tablas vaciadas.');
   }
@@ -250,43 +320,21 @@ export class RethinkDBEventStoreProvider
     if (data.astronauts.length > 0) {
       await r.table('astronauts').insert(data.astronauts).run(this.connection!);
     }
-    for (const [astronautId, projection] of Object.entries(data.bodyProjections)) {
+    if (data.systemProjections.length > 0) {
       await r
-        .table('body_projections')
-        .insert({ id: astronautId, projection }, { conflict: 'replace' })
+        .table('system_projections')
+        .insert(data.systemProjections, { conflict: 'replace' })
         .run(this.connection!);
+    }
+    if (data.recentUpdates.length > 0) {
+      await r.table('recent_updates').insert(data.recentUpdates).run(this.connection!);
     }
     if (data.events.length > 0) {
       await r.table('events').insert(data.events).run(this.connection!);
     }
 
     this.logger.log(
-      `✅ [EventStore:RethinkDB] Datos semilla cargados con éxito (${data.missions.length} misiones, ${data.astronauts.length} astronautas, ${data.events.length} eventos).`,
+      `✅ [EventStore:RethinkDB] Datos semilla cargados con éxito (${data.missions.length} misiones, ${data.astronauts.length} astronautas, ${data.systemProjections.length} proyecciones, ${data.events.length} eventos).`,
     );
-  }
-
-  private createDefaultBodyProjection(): Record<BodyPartId, BodyPartState> {
-    const projection = {} as Record<BodyPartId, BodyPartState>;
-    const now = new Date().toISOString();
-
-    for (const partId of ALL_BODY_PART_IDS) {
-      const meta = BODY_PARTS_METADATA[partId];
-      projection[partId] = {
-        partId,
-        region: meta.region,
-        healthStatus: 'NOMINAL',
-        displayColor: NOMINAL_COLOR,
-        primaryCondition: 'Nominal',
-        painLevel: 0,
-        lastVitals: {
-          tissuePerfusionIndex: 1.0,
-          localTempC: 36.6,
-        },
-        activeAlert: false,
-        lastEvaluatedAt: now,
-      };
-    }
-
-    return projection;
   }
 }

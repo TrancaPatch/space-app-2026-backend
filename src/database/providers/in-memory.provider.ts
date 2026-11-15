@@ -1,17 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AnatomicalSystem } from '../../common/constants/anatomical-systems.constants';
+import { BodyPartId } from '../../common/constants/body-parts.constants';
 import {
-  BodyPartId,
-} from '../../common/constants/body-parts.constants';
-import {
+  AnatomicalPartState,
   Astronaut,
   BaseDomainEvent,
   BodyPartState,
   Mission,
+  RecentUpdate,
+  SystemProjection,
 } from '../../common/interfaces/domain.types';
 import { IEventStore } from '../interfaces/event-store.interface';
 import {
-  createNominalBodyProjection,
+  createNominalSystemParts,
   INITIAL_SEED_DATA,
   SeedData,
 } from '../seeds/initial-seed.data';
@@ -24,7 +26,8 @@ export class InMemoryEventStoreProvider implements IEventStore {
   private missions: Map<string, Mission> = new Map();
   private astronauts: Map<string, Astronaut> = new Map();
   private events: BaseDomainEvent[] = [];
-  private bodyProjections: Map<string, Record<BodyPartId, BodyPartState>> = new Map();
+  private systemProjections: Map<string, SystemProjection> = new Map();
+  private recentUpdates: RecentUpdate[] = [];
 
   constructor(private readonly eventEmitter: EventEmitter2) {
     this.seed();
@@ -48,36 +51,84 @@ export class InMemoryEventStoreProvider implements IEventStore {
     return this.events.filter((e) => e.astronautId === astronautId);
   }
 
-  async getEventsByPart(astronautId: string, partId: BodyPartId): Promise<BaseDomainEvent[]> {
+  async getEventsByPart(astronautId: string, partId: string): Promise<BaseDomainEvent[]> {
     return this.events.filter(
       (e) => e.astronautId === astronautId && (e.payload as any)?.partId === partId,
     );
   }
 
-  async getBodyProjection(astronautId: string): Promise<Record<BodyPartId, BodyPartState>> {
-    const projection = this.bodyProjections.get(astronautId);
+  /**
+   * Obtiene la proyección de cualquiera de los 5 sistemas anatómicos
+   */
+  async getSystemProjection(
+    astronautId: string,
+    system: AnatomicalSystem,
+  ): Promise<SystemProjection> {
+    const key = `${astronautId}_${system}`;
+    let projection = this.systemProjections.get(key);
+
     if (!projection) {
-      // Si no existe, inicializar con estado nominal para todas las 49 partes
-      const newProjection = createNominalBodyProjection();
-      this.bodyProjections.set(astronautId, newProjection);
-      return newProjection;
+      const now = new Date().toISOString();
+      projection = {
+        id: key,
+        astronautId,
+        system,
+        updatedAt: now,
+        parts: createNominalSystemParts(system, now),
+      };
+      this.systemProjections.set(key, projection);
     }
+
     return projection;
   }
 
-  async updateBodyPartProjection(astronautId: string, state: BodyPartState): Promise<void> {
-    const current = await this.getBodyProjection(astronautId);
-    current[state.partId] = {
-      ...state,
+  /**
+   * Actualiza el estado de una parte dentro de un sistema anatómico específico
+   */
+  async updateSystemPart(
+    astronautId: string,
+    system: AnatomicalSystem,
+    partState: AnatomicalPartState,
+  ): Promise<void> {
+    const projection = await this.getSystemProjection(astronautId, system);
+    const updatedState: AnatomicalPartState = {
+      ...partState,
       lastEvaluatedAt: new Date().toISOString(),
     };
-    this.bodyProjections.set(astronautId, current);
 
-    // Notificar actualización de parte en tiempo real
-    this.eventEmitter.emit('body_part.updated', {
+    projection.parts[partState.partId] = updatedState;
+    projection.updatedAt = updatedState.lastEvaluatedAt;
+    this.systemProjections.set(projection.id, projection);
+
+    // Notificar actualización de parte del sistema
+    this.eventEmitter.emit('system_part.updated', {
       astronautId,
-      partState: current[state.partId],
+      system,
+      partState: updatedState,
     });
+
+    // Retrocompatibilidad con suscriptores del cuerpo holográfico
+    if (system === 'body') {
+      this.eventEmitter.emit('body_part.updated', {
+        astronautId,
+        partState: updatedState as unknown as BodyPartState,
+      });
+    }
+  }
+
+  /**
+   * Retrocompatibilidad: Obtiene la proyección del cuerpo holográfico (49 partes)
+   */
+  async getBodyProjection(astronautId: string): Promise<Record<string, BodyPartState>> {
+    const projection = await this.getSystemProjection(astronautId, 'body');
+    return projection.parts as unknown as Record<string, BodyPartState>;
+  }
+
+  /**
+   * Retrocompatibilidad: Actualiza una parte del cuerpo
+   */
+  async updateBodyPartProjection(astronautId: string, state: BodyPartState): Promise<void> {
+    await this.updateSystemPart(astronautId, 'body', state as unknown as AnatomicalPartState);
   }
 
   async getMissions(): Promise<Mission[]> {
@@ -100,6 +151,10 @@ export class InMemoryEventStoreProvider implements IEventStore {
     return Array.from(this.astronauts.values()).filter((a) => a.missionId === missionId);
   }
 
+  async getRecentUpdates(): Promise<RecentUpdate[]> {
+    return this.recentUpdates;
+  }
+
   /**
    * Limpia todo el almacenamiento en memoria
    */
@@ -107,7 +162,8 @@ export class InMemoryEventStoreProvider implements IEventStore {
     this.missions.clear();
     this.astronauts.clear();
     this.events = [];
-    this.bodyProjections.clear();
+    this.systemProjections.clear();
+    this.recentUpdates = [];
     this.logger.log('🧹 [EventStore:Memory] Almacenamiento limpiado por completo.');
   }
 
@@ -127,16 +183,20 @@ export class InMemoryEventStoreProvider implements IEventStore {
       this.astronauts.set(astronaut.id, { ...astronaut });
     }
 
-    // 3. Proyecciones
-    for (const [astronautId, projection] of Object.entries(data.bodyProjections)) {
-      this.bodyProjections.set(astronautId, { ...projection });
+    // 3. Proyecciones de Sistemas Anatómicos
+    for (const proj of data.systemProjections) {
+      const key = proj.id || `${proj.astronautId}_${proj.system}`;
+      this.systemProjections.set(key, JSON.parse(JSON.stringify(proj)));
     }
 
-    // 4. Eventos
+    // 4. Actualizaciones recientes
+    this.recentUpdates = [...data.recentUpdates];
+
+    // 5. Eventos
     this.events.push(...data.events.map((e) => ({ ...e })));
 
     this.logger.log(
-      `✅ [EventStore:Memory] Datos semilla cargados (${data.missions.length} misiones, ${data.astronauts.length} astronautas, ${data.events.length} eventos).`,
+      `✅ [EventStore:Memory] Datos semilla cargados (${data.missions.length} misiones, ${data.astronauts.length} astronautas, ${data.systemProjections.length} proyecciones de sistemas, ${data.events.length} eventos).`,
     );
   }
 }
