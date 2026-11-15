@@ -24,7 +24,7 @@ export interface Astronaut {
   name?: string;            // Para frontend ("Ariel Y.")
   callsign: string;         // "Capitán"
   role: string;             // "Capitán" | "Tripulante" | 'COMMANDER' | ...
-  avatar: string;           // "/avatars/ariel.jpg"
+  avatar: string;           // "/avatars/ariel.png"
   gender?: 'FEMALE' | 'MALE' | 'OTHER';
   age?: number;
   bloodType: string;        // "A+", "O+", "O-"
